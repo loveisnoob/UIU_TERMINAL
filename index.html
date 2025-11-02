@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UIU Secure Terminal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Courier Prime', 'Courier New', Courier, monospace;
+            background-color: #000;
+            color: #FFF;
+            overflow: hidden;
+            cursor: none;
+            background-image: url('https://raw.githubusercontent.com/loveisnoob/UIU_HANDBOOK/main/Untitled%20video%20-%20Made%20with%20Clipchamp.gif');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+        body::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.4),
+                rgba(0, 0, 0, 0.4) 1px,
+                transparent 1px,
+                transparent 3px
+            );
+            pointer-events: none;
+            z-index: 9999;
+            opacity: 0.8;
+        }
+
+        .terminal-text {
+            text-shadow: 0 0 1px #c8c8c8;
+        }
+        
+        .custom-cursor {
+            position: fixed;
+            width: 10px;
+            height: 18px;
+            background-color: #fff;
+            box-shadow: 0 0 5px #fff, 0 0 10px #fff;
+            mix-blend-mode: difference;
+            pointer-events: none;
+            z-index: 10000;
+            animation: blink 1s step-end infinite;
+        }
+
+        @keyframes blink {
+            50% { opacity: 0; }
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #2d3748;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #718096;
+        }
+
+        .interactive-button {
+            transition: all 0.2s ease-in-out;
+        }
+        .interactive-button:hover:not(:disabled) {
+            transform: scale(1.05);
+            text-shadow: 0 0 8px currentColor;
+        }
+        .file-list-item:hover {
+            background-color: #4a5568;
+        }
+
+        #memetic-agent img {
+            border: 2px solid white;
+            box-shadow: 0 0 15px white;
+        }
+        
+        .highlight-text {
+            @apply text-cyan-300;
+        }
+        .section-title {
+            @apply text-yellow-400 text-lg border-b-2 border-gray-600 pb-2 mb-3 mt-4 font-bold;
+        }
+        .tab-button.active {
+            @apply text-yellow-400 border-yellow-400;
+        }
+
+        #remote-access-screen .computer-icon {
+            width: 80px;
+            height: 80px;
+            stroke: #fff;
+            stroke-width: 1;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+    </style>
+</head>
+<body class="w-screen h-screen">
+
+    <div class="custom-cursor" id="custom-cursor"></div>
+    <div class="fixed inset-0 bg-black bg-opacity-20 z-[-1]"></div>
+
+    <div id="remote-access-screen" class="flex flex-col items-center justify-center p-8 h-full w-full fixed inset-0 bg-black z-[80] text-white">
+        <svg class="computer-icon mb-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M7 21H17M12 17V21M3 12C3 4.58172 4.58172 3 12 3C19.4183 3 21 4.58172 21 12M4 17H20M5 14H7M9 14H11" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <p id="remote-status" class="text-lg mb-4">Establishing Secure Connection...</p>
+        <div class="w-1/2 max-w-sm bg-gray-700 border border-white h-4">
+            <div id="remote-progress-bar" class="bg-white h-full" style="width: 0%;"></div>
+        </div>
+    </div>
+
+    <div id="bios-screen" class="hidden flex-col items-start justify-start p-8 h-full w-full fixed inset-0 bg-black z-40 text-white">
+        <p class="terminal-text text-lg">Powered by USOCNET</p>
+        <div id="bios-text" class="mt-8 text-sm w-full"></div>
+    </div>
+    
+    <div id="error-popup" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]">
+        <div class="bg-gray-800 border-2 border-red-500 p-8 rounded-lg shadow-xl text-center">
+            <h2 class="text-2xl text-red-500 mb-4">NETWORK ERROR</h2>
+            <p id="error-message" class="text-lg">Network Unavailable</p>
+        </div>
+    </div>
+    
+    <div id="login-popup" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]">
+        <div class="bg-gray-900 border-2 border-yellow-500 p-8 rounded-lg shadow-xl text-left w-full max-w-md">
+            <h2 class="text-xl text-yellow-500 mb-4">UIU AUTHENTICATION REQUIRED</h2>
+            <p>Please enter your Designated UIU Clearance Code:</p>
+            <div class="bg-black p-2 mt-2 h-8">
+                <span id="login-code"></span><span class="animate-ping">_</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="memetic-agent" class="fixed inset-0 bg-black flex items-center justify-center z-[75] opacity-0 transition-opacity duration-1000 pointer-events-none">
+        <img src="https://github.com/loveisnoob/UIU_HANDBOOK/blob/main/assets_task_01k7n8gyf7f7nrqynthtchbceh_1760576470_img_0.webp?raw=true" alt="MEMETIC KILL AGENT ACTIVATED" class="max-w-full max-h-full object-contain">
+    </div>
+
+    <div id="main-terminal" class="hidden h-full flex flex-col">
+        <div class="w-full bg-gray-700 bg-opacity-80 p-2 text-gray-200 flex items-center flex-shrink-0" style="border-bottom: 2px solid rgba(255, 255, 255, 0.7);">
+            <img src="https://github.com/loveisnoob/UIU_HANDBOOK/blob/main/Logo_SCP_Foundation-removebg-preview.png?raw=true" alt="UIU Logo" class="h-8 w-8 mr-4">
+            <span class="mr-6">ID: UIU-TERM-03</span>
+            <span class="mr-6">LOCATION: PENTAGRAM</span>
+            <span id="timestamp"></span>
+        </div>
+
+        <div class="flex-grow overflow-hidden" id="terminal-content-wrapper">
+            <div class="p-4 h-full overflow-y-auto" id="terminal-content"></div>
+
+            <div id="archive-screen" class="hidden h-full flex flex-col">
+                <div id="pending-review-bar" class="bg-black p-2 flex-shrink-0 border-b-2 border-yellow-400">
+                    <p class="text-yellow-400 text-center">1 File pending review… <a href="#" id="review-button" class="bg-yellow-400 text-black px-2 py-1 interactive-button">[REVIEW]</a> <a href="#" id="network-select-button" class="bg-cyan-400 text-black px-2 py-1 interactive-button ml-2">[NETWORK SELECTION]</a></p>
+                </div>
+                <div class="flex-grow flex flex-col overflow-hidden bg-gray-900 bg-opacity-50">
+                    <div id="file-list-container" class="w-full h-full p-4 overflow-y-auto">
+                        <div class="bg-gray-700 p-2 font-bold mb-4">UIU File Database</div>
+                        <div id="file-list" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                            <p class="p-2 cursor-pointer file-list-item border-2 border-yellow-500 bg-yellow-900" data-file-id="operation">Lore Operation, Declassified.</p>
+                            <p class="p-2 cursor-pointer file-list-item border border-gray-600">Irregularity Proposal: 2001-489</p>
+                            <p class="p-2 cursor-pointer file-list-item border border-gray-600">Directive: Make America Normaler</p>
+                            <p class="p-2 cursor-pointer file-list-item border border-gray-600">UIU Memorandum — Paralaw Briefing</p>
+                            <p class="p-2 cursor-pointer file-list-item border border-gray-600" data-file-id="handbook">UIU Location Dossier — "Paramax"</p>
+                            <p class="p-2 cursor-pointer file-list-item border border-gray-600">UIU File: 2021-354 (OPERATION: SUPERFUND)</p>
+                            <p class="p-2 cursor-pointer file-list-item border border-gray-600">UIU Location Dossier: "Site 19"</p>
+                            <p class="p-2 cursor-pointer file-list-item border border-gray-600">UIU Location Dossier — "Three Portlands"</p>
+                            <p class="p-2 cursor-pointer file-list-item border border-gray-600">UIU 1929-13: So Black and Blue</p>
+                            <p class="p-2 cursor-pointer file-list-item border border-gray-600">UIU File: 1933-001</p>
+                            <p class="p-2 cursor-pointer file-list-item border border-gray-600">UIU File: 1941-016</p>
+                            <p class="p-2 cursor-pointer file-list-item border border-gray-600">UIU File: 1948-019</p>
+                            <p class="p-2 cursor-pointer file-list-item border border-gray-600">UIU File: 1952-003</p>
+                            <p class="p-2 cursor-pointer file-list-item border border-gray-600">UIU File: 1970-034</p>
+                            <p class="p-2 cursor-pointer file-list-item border border-gray-600">UIU File: 1972-055</p>
+                            <p class="p-2 cursor-pointer file-list-item border border-gray-600">UIU/PETRA File: 1974-028</p>
+                            <p class="p-2 cursor-pointer file-list-item border border-gray-600">UIU File: 1988-021</p>
+                            <p class="p-2 cursor-pointer file-list-item border border-gray-600">UIU File: 1993-273</p>
+                            <p class="p-2 cursor-pointer file-list-item border border-gray-600">UIU File: 1997-007</p>
+                            <p class="p-2 cursor-pointer file-list-item border border-gray-600">UIU File: 1997-024</p>
+                            <p class="p-2 cursor-pointer file-list-item border border-gray-600">UIU File: 1998-017</p>
+                        </div>
+                    </div>
+                    <div id="file-content-view" class="w-full h-full overflow-y-auto bg-black bg-opacity-30 hidden"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const remoteAccessScreen = document.getElementById('remote-access-screen');
+            const remoteProgressBar = document.getElementById('remote-progress-bar');
+            const remoteStatus = document.getElementById('remote-status');
+            const biosScreen = document.getElementById('bios-screen');
+            const biosText = document.getElementById('bios-text');
+            const mainTerminal = document.getElementById('main-terminal');
+            const terminalContent = document.getElementById('terminal-content');
+            const archiveScreen = document.getElementById('archive-screen');
+            const customCursor = document.getElementById('custom-cursor');
+            const errorPopup = document.getElementById('error-popup');
+            const errorMessage = document.getElementById('error-message');
+            const loginPopup = document.getElementById('login-popup');
+            const loginCode = document.getElementById('login-code');
+            const fileListContainer = document.getElementById('file-list-container');
+            const fileListView = document.getElementById('file-list');
+            const fileContentView = document.getElementById('file-content-view');
+            const reviewButton = document.getElementById('review-button');
+            const networkSelectButton = document.getElementById('network-select-button');
+            const pendingReviewBar = document.getElementById('pending-review-bar');
+
+            reviewButton.addEventListener('click', (e) => {
+                e.preventDefault();
+                document.querySelector('[data-file-id="handbook"]')?.click();
+            });
+
+            networkSelectButton.addEventListener('click', (e) => {
+                e.preventDefault();
+                archiveScreen.classList.add('hidden');
+                fileContentView.classList.add('hidden');
+                fileListContainer.classList.remove('hidden');
+                terminalContent.style.display = 'block';
+                terminalContent.innerHTML = '';
+                
+                let currentLine = document.createElement('p');
+                currentLine.textContent = 'Please select a network:';
+                terminalContent.appendChild(currentLine);
+                showNetworkOptions();
+            });
+
+            document.addEventListener('mousemove', e => {
+                customCursor.style.left = e.clientX + 'px';
+                customCursor.style.top = e.clientY + 'px';
+            });
+            document.addEventListener('mousedown', () => customCursor.style.transform = 'scale(0.8)');
+            document.addEventListener('mouseup', () => customCursor.style.transform = 'scale(1)');
+
+            const timestampEl = document.getElementById('timestamp');
+            function updateTimestamp() {
+                const now = new Date();
+                timestampEl.textContent = `TIMESTAMP: ${now.toUTCString()}`;
+            }
+            setInterval(updateTimestamp, 1000);
+            updateTimestamp();
+
+            function typeWriter(element, text, speed, callback) {
+                let i = 0;
+                element.innerHTML = '';
+                function type() {
+                    if (i < text.length) {
+                        element.innerHTML += text.charAt(i);
+                        i++;
+                        setTimeout(type, speed);
+                    } else if (callback) {
+                        callback();
+                    }
+                }
+                type();
+            }
+            
+            const fileTemplates = {
+                operation: `
+                    <div class="p-4">
+                        <button id="back-to-files" class="text-yellow-400 interactive-button mb-4">[<-- Back to File Database]</button>
+                        <div class="text-center mb-4">
+                            <h2 class="text-2xl text-yellow-300 mb-2">Lore Operation, Declassified.</h2>
+                            <p class="text-red-500 font-bold text-xl">Mortuos Caede, Paraneutrales Occide</p>
+                        </div>
+                        
+                        <div class="text-sm text-gray-300 space-y-3">
+                            <div class="bg-gray-800 p-3 border-l-4 border-red-500">
+                                <p><strong>From:</strong> ███. █████████████████</p>
+                                <p><strong>To:</strong> POTUS and the Director of FBI.</p>
+                                <p><strong>Subject:</strong> Operation █████████-████████</p>
+                                <p><strong>Classification:</strong> <span class="text-red-400">TS/SCI</span>, Protected under the 18 U.S. Code § 798. Eyes only</p>
+                                <p><strong>Date:</strong> ██-██-████</p>
+                            </div>
+
+                            <h3 class="section-title">1) Briefing and Overview</h3>
+                            <p>Operation Illuminati Confirmed is a coordinated operation between the Unusual Incidents Unit's Task Force Blade (BLADE) and the U.S. Department of the ██████ and ████████████ ████████ (█████) and the British Occult Service, Under Her Majesty's Department of Arcane Affairs. The mission's primary objective is the neutralization or capture of an occult threat nicknamed "The ██████", currently resurrecting Illuminati-inspired esoteric CAN.</p>
+
+                            <h3 class="section-title">2) Rules of Engagement</h3>
+                            <div class="ml-4 space-y-2">
+                                <p><strong class="text-yellow-400">Use of Force:</strong> Lethal or non‑lethal depending on threat level.</p>
+                                <p><strong class="text-yellow-400">Civilian Shielding:</strong> Agents are ordered to avoid civilian interaction.</p>
+                            </div>
+
+                            <h3 class="section-title">3) Timeline & Status</h3>
+                            <div class="ml-4 space-y-2">
+                                <p><strong class="text-yellow-400">Execution Window:</strong> July ██-████, ██.30</p>
+                                <p><strong class="text-yellow-400">Current Positioning:</strong></p>
+                                <div class="ml-4">
+                                    <p>→ Assets: Strike Team "██████"</p>
+                                    <p>→ ETA to LZ if authorized, 16 Hours.</p>
+                                </div>
+                                <p><strong class="text-yellow-400">Pre-Op Checkpoint:</strong> July 14, morning final Intel review at the ████████ HQ.</p>
+                            </div>
+
+                            <h3 class="section-title">4) Presidential Directives</h3>
+                            <div class="ml-4 space-y-2">
+                                <p>[ ] Authorization for lethal force if warranted</p>
+                                <p>[ ] Approval of full USDMS, UIU budget allocation</p>
+                                <p>[ ] Authorization to terminate any anomalies</p>
+                            </div>
+
+                            <div class="mt-6 bg-gray-800 p-4 border-t-2 border-gray-600">
+                                <p class="mb-2"><strong>Prepared by:</strong></p>
+                                <p>███. ████████████████</p>
+                                <p class="text-cyan-300">The United States Department of the Occult and Metaphysical Sciences.</p>
+                                <p class="mt-4 text-sm">Under authority of</p>
+                                <p class="text-cyan-300">U.S. Department of the ██████ and ████████████ ████████</p>
+                                <p class="text-center my-2">&</p>
+                                <p class="text-cyan-300">Her Majesty's Department of Arcane Affairs.</p>
+                            </div>
+
+                            <div class="mt-6 text-center border-2 border-yellow-500 p-4 bg-yellow-900">
+                                <p class="text-yellow-300 mb-3">⬥ For your eyes only. ⬥</p>
+                                <p class="mb-2"><strong>Sign here:</strong></p>
+                                <p class="mb-1">___________________________, President of the United States</p>
+                                <p>___________________________, Director of the FBI</p>
+                            </div>
+
+                            <p class="text-center mt-4 text-red-500 font-bold text-xl">Mortuos Caede, Paraneutrales Occide</p>
+                            
+                            <div class="mt-4 text-xs text-gray-500 italic text-center">
+                                <p>Note: Most information in this document is classified. Full access requires UIU server clearance.</p>
+                            </div>
+                        </div>
+                    </div>
+                `,
+                lan: `
+                    <div class="p-4">
+                        <button id="back-to-files" class="text-yellow-400 interactive-button mb-4">[<-- Back to Network Selection]</button>
+                        <h2 class="text-2xl text-yellow-300 mb-4">UIU LAN - GENERAL INFORMATION</h2>
+                        <div class="text-sm text-gray-300 space-y-4">
+                            <div class="border-l-4 border-yellow-400 pl-4 bg-gray-800 p-3">
+                                <p class="italic text-yellow-200">" Because we're all American. None of us are some little hooligan you had to recruit because they were in the right place at the right time. We've got pure Americanism, through and through. I'd trust a real American with this sort of thing a lot more than some agency riddled with outside influences. "</p>
+                                <p class="text-right text-gray-400 mt-2">- J. Edgar Hoover, Founder of the Unusual Incidents Unit</p>
+                            </div>
+
+                            <p>The Federal Bureau Of Investigation's Unusual Incidents Unit (FBIUIU or GOI-06) is a division of the FBI dedicated to protecting the United States of America from Confirmed Anomalies (CANs) or opposing Groups of Interest, whilst gathering information about the two as well, often through the various specialties of our Agents.</p>
+
+                            <h3 class="section-title">Authorized Objectives</h3>
+                            <p>FBIUIU Agents are authorised to achieve the goals set by the United States Government through the following means:</p>
+                            <div class="space-y-2 ml-4">
+                                <p>→ Gathering onsite intelligence on CANs or POIs and thereafter submitting detailed incident reports that are available to all Agents for later use (access may be restricted depending on orders issued by the Board of Directorates and/or High Command)</p>
+                                <p>→ The infiltration of the SCP Foundation or any GOIs via spy methods and technology</p>
+                                <p>→ The counteraction against criminal organisations, law enforcement and covert military action on GOIs</p>
+                            </div>
+
+                            <h3 class="section-title">Command Structure</h3>
+                            <div class="space-y-3">
+                                <div>
+                                    <h4 class="text-yellow-400">Board of Directorates</h4>
+                                    <p class="text-sm text-gray-400">(Includes the Executive Assistant Directorate, Deputy Director and Director)</p>
+                                    <p>Responsible for managing major external and internal affairs as well as implementing orders issued by the United States Government</p>
+                                </div>
+                                <div>
+                                    <h4 class="text-yellow-400">High Command</h4>
+                                    <p>Responsible for overseeing the majority of internal affairs, they report directly to the Board of Directorates and oversee the operations of the Field Leadership</p>
+                                </div>
+                                <div>
+                                    <h4 class="text-yellow-400">Field Leadership</h4>
+                                    <p>Responsible for overseeing the majority of deployments onto the various locations the UIU deploys in, this includes supervising Superior Class and Subordinate Class Agents with their duties while deployed</p>
+                                </div>
+                                <div>
+                                    <h4 class="text-yellow-400">Superior Class Agent</h4>
+                                    <p>A senior rank given to those who have displayed an adequate level of understanding of the UIU's missions and have suitable onsite experience, they often directly assist the Field Leadership during deployments to important locations</p>
+                                </div>
+                                <div>
+                                    <h4 class="text-yellow-400">Subordinate Class Agent</h4>
+                                    <p>The lowest rank, given to those new to the Unusual Incidents Unit, and even the Anomalous itself. As Subordinate Class Agents, they are tasked with following the orders issued by Field Command during deployments, whilst gaining the necessary training and experience required to become a fully fledged, Superior Class Agent</p>
+                                </div>
+                            </div>
+
+                            <h3 class="section-title">Relationship with the Foundation</h3>
+                            <p>Currently, the Unusual Incidents Unit and SCP: Foundation maintain a neutral relationship, whilst deployed on Site 45, UIU Agents are instructed to follow the orders of Foundation personnel with L3 clearance or higher, unless told otherwise by a member of the Board of Directorates. The Foundation benefits from the UIU deploying onsite as the specialties of Agents allow them to assist with Site Security against unauthorised, rogue or hostile personnel, and sometimes the recontainment of breached anomalies. On the other hand, the UIU utilises the mostly unrestricted access to Site 45 to feign alliance while actively providing intelligence on CANs, POIs and GOIs to the FBI. This is especially useful considering the damage caused by IR-4001 to various internal records stored by the United States Government due to the loss of personnel. The UIU and Foundation have been neutrally aligned for a significant amount of time, for example they collaborated during the attempted containment and neutralisation of SCP 4444 in the early 2000s. This previous history allowed for relations to be built back up relatively fast following the disastrous effects of IR-4001 on both organisations, where senior staff responsible for maintaining relations perished to the fire.</p>
+
+                            <h3 class="section-title">The Effect of IR-4001 on the Unusual Incidents Unit</h3>
+                            <p>Following the events of IR-4001, a significant amount of infrastructure, records and personnel within government agencies perished. This spurred the United States Government to issue an executive order to restructure their anomalous agencies especially. The previously severely underfunded Unusual Incidents Unit benefitted from gaining equipment and volunteers sent by the Central Intelligence Agency, allowing for the creation of 2 new specialised divisions within the FBIUIU:</p>
+                            
+                            <div class="space-y-2 ml-4 mt-2">
+                                <div>
+                                    <p class="text-cyan-300">Task Force "Centurion":</p>
+                                    <p>A dedicated first response team tasked with the recontainment and neutralisation of CANs, they regularly assist Foundation personnel with controlling breaches.</p>
+                                </div>
+                                <div>
+                                    <p class="text-cyan-300">Task Force "Blade":</p>
+                                    <p>A protective unit tasked with guarding highly important personnel within the UIU, they are trained in hostage rescue and combat to assist with their duties</p>
+                                </div>
+                            </div>
+
+                            <p class="mt-4">To further increase the resources and personnel provided to the FBIUIU, the United States Government authorised the creation of the "Echelon" programme, leading to the creation of Task Force "Echelon." This task force consists of a group of commandos/agents who are either transferred from various US agencies and departments; sent from allied governments in exchange for valuable intelligence collected by the UIU or people who are "involuntarily hired" due to their skills being viewed as a great potential asset.</p>
+
+                            <p class="mt-4">The "Echelon" programme, and the transfer of personnel and equipment from the CIA has actually caused the Unusual Incidents Unit to strengthen following IR-4001, however, the mass destruction caused by the event has also meant the United States Government still cannot provide the necessary funding required for regular Agents and Detectives to undergo necessary training to further increase their effectiveness on the field. Furthermore, the loss of many Superior Class Agents has led to the UIU being forced to recruit inexperienced members as new Subordinate Class Agents. This means that the infamous reputation the FBIUIU has garnered from their Agents being incompetent has persisted after IR-4001 as well, as the UIU does not have the required instructors and money to effectively train this influx of "Trainee Agents."</p>
+                        </div>
+                    </div>
+                `,
+                guest: `
+                    <div class="p-4">
+                        <button id="back-to-files" class="text-yellow-400 interactive-button mb-4">[<-- Back to Network Selection]</button>
+                        <h2 class="text-2xl text-yellow-300 mb-4">UIU GUEST ACCESS</h2>
+                        <div class="text-sm text-gray-300 space-y-4">
+                            <div class="bg-red-900 border-2 border-red-500 p-4 mb-4">
+                                <p class="text-center text-lg">[ 1 New Message from the J. Edgar Hoover building. ]</p>
+                            </div>
+
+                            <div class="bg-gray-800 p-4 border-l-4 border-cyan-400">
+                                <p class="text-cyan-300 mb-2">from: directormasona@fbi.gov</p>
+                                <p>Hello, Agent █████. Please proceed to the Mp3 file provided.</p>
+                            </div>
+
+                            <div class="my-4">
+                                <p class="text-center">. . . . .</p>
+                                <p class="text-green-400 text-center">Access Granted!</p>
+                                <p class="text-center">. . . . .</p>
+                            </div>
+
+                            <div class="bg-gray-800 p-4">
+                                <p class="text-yellow-400 mb-2">[ Loading UIUorientation.mp3... ]</p>
+                                <p class="text-center mb-4">. . . . .</p>
+                                
+                                <div class="space-y-3 text-gray-200">
+                                    <p>[ Welcome to the FBI's second least popular division; the Unusual Incidents Unit. Most of you are probably here as a punishment, because someone wants you out of their hair. Any of you here because you told your superiors the truth, and they didn't believe it? Ah, just one. You see; the UIU is a joke, but not for the reasons you guys think. We deal with Cans, Cans are events, entities, or objects that are impossible, and you'll probably find multiple other parties searching for them. So if what we are investigating is real, why are we a joke? Because we're way out of our depth.</p>
+                                    
+                                    <p>You guys aren't trained for the sort of stuff that we're meant to be investigating. That being said, we have signed deals with other external groups to assist in dealing with Cans, Law enforcement, and Investigation into other phenomena. ]</p>
+                                </div>
+                            </div>
+
+                            <div class="bg-yellow-900 border-2 border-yellow-500 p-4 my-4">
+                                <p class="text-yellow-200">[ You have been given a set of standards you need to follow, these such standards will help you in understanding the UIU, how we work, and what to do on the field. Failure to uphold these standards will result in termination of your employment, memory wipe, and shipping off to your residence. ]</p>
+                            </div>
+
+                            <div class="text-center my-4">
+                                <p>. . . . .</p>
+                            </div>
+
+                            <div class="bg-gray-800 p-4">
+                                <h3 class="text-yellow-400 text-lg mb-3">Required Standards</h3>
+                                <div class="space-y-2">
+                                    <p>→ Strong work ethic.</p>
+                                    <p>→ Understanding of <span class="text-cyan-300">Cans</span>.</p>
+                                    <p>→ Ability to write weekly reports on <span class="text-cyan-300">Cans</span>, POI's, or other events.</p>
+                                    <p>→ Vast teamwork abilities</p>
+                                    <p>→ Effective Communication</p>
+                                    <p>→ Maturity</p>
+                                    <p>→ Basic knowledge on law enforcement</p>
+                                </div>
+                            </div>
+
+                            <div class="bg-green-900 border-2 border-green-500 p-4 my-4">
+                                <p class="text-green-200 mb-2">[ You are expected to arrive soon, Please join our communications link that is listed below. ]</p>
+                                <p class="text-center text-yellow-300 mt-4">[ Save those who cannot see! ]</p>
+                                <a href="https://discord.gg/zHMhmugSms" target="_blank" class="block text-center text-cyan-300 underline mt-2 hover:text-cyan-100">https://discord.gg/zHMhmugSms</a>
+                            </div>
+                        </div>
+                    </div>
+                `,
+                handbook: `
+                    <div class="p-4">
+                        <div class="flex justify-between items-start mb-4">
+                             <h2 class="text-2xl text-yellow-300">UIU HANDBOOK</h2>
+                             <div class="flex-shrink-0 ml-4">
+                                <button id="back-to-files" class="text-yellow-400 interactive-button mb-2 text-sm block">[<-- Back to Database]</button>
+                                <button id="download-pdf" class="bg-blue-500 text-white px-2 py-1 interactive-button text-sm block w-full">[Download as PDF]</button>
+                             </div>
+                        </div>
+
+                        <div id="pdf-content" class="text-sm">
+                             <div class="flex border-b border-gray-600 mb-4 flex-wrap">
+                                <button class="tab-button px-4 py-2 text-gray-400 border-b-2 border-transparent hover:text-white active" data-tab="content">Handbook</button>
+                                <button class="tab-button px-4 py-2 text-gray-400 border-b-2 border-transparent hover:text-white" data-tab="hierarchy">Hierarchy</button>
+                            </div>
+
+                            <div id="content" class="tab-pane">
+                                <h3 class="section-title">Warning</h3>
+                                <p class="text-red-500 font-bold leading-relaxed mb-4">
+                                    Under no circumstances is it allowed to leak any document within the UIU, including this one. Anyone leaking this document will be punished to the maximum extent permitted.
+                                </p>
+                                
+                                <h3 class="section-title">Welcome to the FBI's Second Least Popular Division</h3>
+                                <p class="text-gray-300 leading-relaxed">
+                                    In the UIU, The unit has clear goals, These such goals are to <span class="highlight-text">"Borrow" Anomalies</span>, <span class="highlight-text">Raid enemy compounds</span>, And <span class="highlight-text">Gather intelligence</span> on key figures, CANS, and events.
+                                    <br/><br/>
+                                    This Handbook has been created to inform you on how to perform your duties, as well as how you should proceed in your future on the UIU. <span class="text-yellow-400">Good Luck Agent.</span>
+                                </p>
+
+                                <h3 class="section-title">UIU Basic Information</h3>
+                                <p class="text-gray-300 leading-relaxed">
+                                    The main objective of the UIU with the Foundation is <span class="highlight-text">gathering intelligence</span>, under a false pretense that the UIU is aiding the Foundation in their cause. UIU Agents are to attempt to gather information on the Site's operations, Entities Contained and other events that would be relevant to the United States Government.
+                                    <br/><br/>
+                                    To accomplish this mission, every UIU Agent can make a report every week, the reports can be of 3 different topics: <span class="highlight-text">site intelligence report</span> and <span class="highlight-text">personnel intelligence report</span>, reports are made here: <span class="text-yellow-400">[ - UIU - ] Incident Report Format</span>
+                                    <br/><br/>
+                                    Incident Reports serve as the <span class="highlight-text">point system</span> inside of UIU, the more the reports you send the closer you are to rank up. Additionally, Ranks are only given via your merit. <span class="text-red-400">If you fail to give us information, then you have no place in our Unit.</span>
+                                </p>
+                                
+                                <h3 class="section-title">UIU Uniforms</h3>
+                                <p class="text-gray-300 leading-relaxed mb-4">
+                                    Every UIU Agent is able to have their custom designed uniform in some way or another, there are a few regulations to these uniforms, these are:
+                                </p>
+                                <ul class="list-disc list-inside space-y-2 text-gray-300">
+                                    <li>You must wear a Realistic Skin color/tone.</li>
+                                    <li>T-Shirts (decals that go on your chest) are forbidden.</li>
+                                    <li>Packages are forbidden.</li>
+                                    <li>Face, neck and head accessories must not interfere with the in-game required accessories (Morphs).</li>
+                                    <li>Hair is allowed if it doesn't interfere with your helmet or hat.</li>
+                                    <li>Hat (head type) accessories are permitted, though these hat accessories must make sense to your role, and be realistic.</li>
+                                    <li>Combat Accessories are allowed for UIU agents in the main division, However you must keep them to a minimum.</li>
+                                    <li><span class="text-red-400">Anything resembling something like a Maid, Furry, Nazi, or Historical figure is strictly forbidden.</span></li>
+                                </ul>
+                                <p class="text-gray-300 mt-4">
+                                    UIU Uniforms may be found on the UIU Section, channel named <span class="highlight-text">"Morph-Templates"</span>
+                                </p>
+
+                                <h3 class="section-title">UIU Duties</h3>
+                                <p class="text-gray-300 leading-relaxed mb-4">
+                                    UIU HICOM Believes that UIU duties should go according to Lore. As such the duties of any UIU Agent are simple.
+                                </p>
+                                
+                                <h4 class="text-lg text-yellow-400 mb-2 mt-4">Study of Confirmed Anomalies:</h4>
+                                <p class="text-gray-300 leading-relaxed">
+                                    Confirmed Anomalies (CANS) Should be done at any site or any SCP Foundation Installation to later report back to the US Government.
+                                    <br/>
+                                    Confirmed Anomalies should not be tested upon, only shall a UIU Agent write a report about it and send it to UIU HICOM To pass into the database.
+                                </p>
+
+                                <h4 class="text-lg text-yellow-400 mb-2 mt-4">Enforcing US Policies</h4>
+                                <p class="text-gray-300 leading-relaxed">
+                                    The US Policies given to the UIU by the US Government states that if any Anomaly is trafficked by an enemy GOI then a raid shall be done, And if abuse of a UIU agent is done, the UIU shall respond with violent measures.
+                                </p>
+
+                                <h4 class="text-lg text-yellow-400 mb-2 mt-4">Intelligence:</h4>
+                                <p class="text-gray-300 leading-relaxed">
+                                    Give Intelligence to the US Government from Important Personnel, Intelligence is given to UIU high command by the federal agency, then the UIU HICOM will forward the intelligence to the department of defense and the Federal Government.
+                                </p>
+
+                                <h3 class="section-title">Guidelines</h3>
+                                <p class="text-gray-300 leading-relaxed mb-4">
+                                    UIU Personnel have discord username guidelines, these are as follows:
+                                    <br/>
+                                    <span class="highlight-text">[Rank Abbreviation] | "Codename"</span>
+                                </p>
+                                <p class="text-gray-300 leading-relaxed mb-4">
+                                    UIU Personnel have to follow orders from the Marauders if the situation is deemed combative response, otherwise, UIU Personnel ranking "Senior Supervisory Agent" and above may command TFS Low ranks at any time.
+                                </p>
+                                <p class="text-gray-300 leading-relaxed">
+                                    UIU personnel when logging a self deployment must have a stopwatch picture to confirm their time as well as 6 photos of said self deployment.
+                                </p>
+
+                                <h3 class="section-title">Punishment System</h3>
+                                
+                                <h4 class="text-lg text-yellow-400 mb-2 mt-4">Formal Warning:</h4>
+                                <ul class="list-disc list-inside space-y-1 text-gray-300">
+                                    <li>2 Formal Warnings warrant a strike.</li>
+                                    <li>Warnings may be appealed after 1-2 Weeks depending on the issuer.</li>
+                                </ul>
+
+                                <h4 class="text-lg text-yellow-400 mb-2 mt-4">Strike:</h4>
+                                <ul class="list-disc list-inside space-y-1 text-gray-300">
+                                    <li>1 Strike warrants a demotion and 2 week rank lock depending on the issuer.</li>
+                                    <li>2 Strikes warrant a demotion to trainee agent and a 2 month rank lock.</li>
+                                    <li>3 Strikes warrant an exile and a 2 month blacklist.</li>
+                                </ul>
+
+                                <h4 class="text-lg text-yellow-400 mb-2 mt-4">Suspension:</h4>
+                                <ul class="list-disc list-inside space-y-1 text-gray-300">
+                                    <li>Suspensions can last from the minimum of 3 days up to 2 weeks.</li>
+                                    <li>Suspensions may be handed out at strike 2 or 3 if warranted.</li>
+                                </ul>
+
+                                <h4 class="text-lg text-yellow-400 mb-2 mt-4">Blacklist:</h4>
+                                <ul class="list-disc list-inside space-y-1 text-gray-300">
+                                    <li>3 Strikes warrant blacklist.</li>
+                                    <li>Anything that is considered a major offense warrants a blacklist.</li>
+                                    <li>Blacklists are able to be appealed after 2-3 Months unless stated otherwise.</li>
+                                    <li>Directorates may blacklist you for any reason if they so choose.</li>
+                                </ul>
+
+                                <h4 class="text-lg text-yellow-400 mb-2 mt-4">Activity Strike:</h4>
+                                <p class="text-gray-300">3 Activity strikes warrant an exile.</p>
+
+                                <h3 class="section-title">Incident Reports</h3>
+                                <ul class="list-disc list-inside space-y-2 text-gray-300">
+                                    <li>You may report on basic things that happen on-site, such as a small event or test.</li>
+                                    <li>The more reports you make, the more you will rank up.</li>
+                                    <li>Reports must be mature, grammatically correct, and greatly made.</li>
+                                    <li><span class="text-red-400">Don't report some dumb shit like an OORP moderation.</span></li>
+                                    <li>You may make reports on interrogations, As those also benefit us.</li>
+                                    <li>Adding images to your reports is optional, If you add images of POI's/CANS then it would be greatly appreciated.</li>
+                                    <li>Watchlists are made to ensure UIU agents gather information on subjects of suspicious Foundation personnel/GOI Personnel, You may make reports on certain individuals in the watchlist.</li>
+                                </ul>
+
+                                <h3 class="section-title">Threat Levels</h3>
+                                <p class="text-gray-300 leading-relaxed mb-4">
+                                    Refers to the precautions that must be taken to mitigate and/or prevent hostile actions against the UIU and its personnel. Force Protection is used to ensure that the Installation's security is maintained and that siege or raid scenarios are dealt with effectively.
+                                </p>
+
+                                <h4 class="text-lg text-yellow-400 mb-2 mt-4">Threat Level: Alpha</h4>
+                                <p class="text-gray-300 leading-relaxed mb-2">
+                                    Describes a situation where there may be a threat that is unknown, Minor things happening, Or generally just a safe-ish site.
+                                </p>
+                                <ul class="list-disc list-inside space-y-1 text-gray-300">
+                                    <li>There are individuals openly suggesting the possibility of an attack of any form.</li>
+                                    <li>There are individuals repeatedly violating rules and disobeying orders from authorities.</li>
+                                    <li>UIU and other personnel of authority are on low alert, but nonetheless remain on watch.</li>
+                                </ul>
+
+                                <h4 class="text-lg text-yellow-400 mb-2 mt-4">Threat Level: Bravo</h4>
+                                <p class="text-gray-300 leading-relaxed mb-2">
+                                    Describes a situation where there is somewhat clear evidence of a possible attack with considerable significance.
+                                </p>
+                                <ul class="list-disc list-inside space-y-1 text-gray-300">
+                                    <li>There are individuals who are acting suspiciously such as watching from a distance, scouting the site, etc.</li>
+                                    <li>Unauthorized personnel brandishing firearms.</li>
+                                    <li>Seemingly GOI's are announcing their intentions on attacking any Installation with interest to the UIU or with UIU Personnel on it.</li>
+                                </ul>
+
+                                <h4 class="text-lg text-yellow-400 mb-2 mt-4">Threat Level: Charlie</h4>
+                                <p class="text-gray-300 leading-relaxed mb-2">
+                                    Describes a situation where there are reports of an imminent attack of any form.
+                                </p>
+                                <ul class="list-disc list-inside space-y-1 text-gray-300">
+                                    <li>Intelligence confirmed the nature of the attack and the time (if possible) when the attack will take place.</li>
+                                    <li>UIU and its divisions must remain on high alert and take defensive positions in, out, and around the Installation if needed.</li>
+                                    <li>All other Personnel are to evaluate the people on-site that might be affiliated with the group, a full site sweep can be ordered.</li>
+                                </ul>
+
+                                <h4 class="text-lg text-yellow-400 mb-2 mt-4">Threat Level: Delta</h4>
+                                <p class="text-gray-300 leading-relaxed mb-2">
+                                    Describes a situation when an attack is taking place or has just occurred or when intelligence has confirmed an imminent attack, and will set all security protocols on high alert.
+                                </p>
+                                <p class="text-gray-300 leading-relaxed"><span class="highlight-text">Threat Level: Delta-1:</span> Declared when a siege or a raid will take place/is taking place/has just ended.</p>
+                                <ul class="list-disc list-inside space-y-1 text-gray-300 ml-4">
+                                    <li>Security measures will include inspecting every corner of the Installation where the attackers went to.</li>
+                                    <li>Authorized armed personnel are to remain in the Installation and prepare for another raid if the threat is still posed.</li>
+                                </ul>
+                                <p class="text-gray-300 leading-relaxed mt-2"><span class="highlight-text">Threat Level: Delta-2:</span> Declared when a Faction goes Rogue.</p>
+                                <ul class="list-disc list-inside space-y-1 text-gray-300 ml-4">
+                                    <li>UIU Personnel on-site are to assist Foundation/Allied Efforts on defending against the new threat.</li>
+                                    <li>Any Event where a faction goes rogue must be informed towards HICOM.</li>
+                                    <li>Authorized personnel must remain on standby incase of another attack.</li>
+                                </ul>
+
+                                <h3 class="section-title">Type of Deployments</h3>
+                                <p class="text-gray-300 leading-relaxed mb-4">
+                                    There are several different types of deployments, These vary based on the threat level.
+                                </p>
+
+                                <h4 class="text-lg text-yellow-400 mb-2">Threat level: Alpha deployments</h4>
+                                <p class="text-gray-300 leading-relaxed">
+                                    Alpha threat deployments are generally just regular UIU deployments, No combat vests needed, Agents will be in regular suits.
+                                </p>
+
+                                <h4 class="text-lg text-yellow-400 mb-2 mt-4">Threat level: Bravo Deployments</h4>
+                                <p class="text-gray-300 leading-relaxed">
+                                    Bravo threat deployments are deployments where hostile factions/enemy factions have a high presence on-site. UIU Agents will be given combat vests so that they can remain protected.
+                                </p>
+
+                                <h4 class="text-lg text-yellow-400 mb-2 mt-4">Threat level: Charlie deployments</h4>
+                                <p class="text-gray-300 leading-relaxed">
+                                    Charlie threat deployments are when UIU agents are at their highest alert, They will be issued combat vests just like bravo deployments, Only this time they will remain combat ready.
+                                </p>
+
+                                <h4 class="text-lg text-yellow-400 mb-2 mt-4">Threat level: Delta deployments (1 and 2)</h4>
+                                <p class="text-gray-300 leading-relaxed">
+                                    Delta threat level deployments are when UIU is deployed as a reinforcement during a containment breach or hostile attack, and will be full fledged combat ready. Agents will be given higher weaponry.
+                                </p>
+
+                                <h3 class="section-title">Types Of CANs</h3>
+                                <p class="text-gray-300 leading-relaxed mb-4">
+                                    A CAN is a confirmed anomaly, An event or area that involves something impossible. There are multiple types of CANS, And each of them are unique.
+                                </p>
+
+                                <h4 class="text-lg text-yellow-400 mb-2">CARTS: Confirmed Artifacts</h4>
+                                <p class="text-gray-300 leading-relaxed">
+                                    These types of CANS are typically objects with anomalous properties, and do not belong in this world, An example of a CART is SCP-268.
+                                </p>
+
+                                <h4 class="text-lg text-yellow-400 mb-2 mt-4">CAN MAN</h4>
+                                <p class="text-gray-300 leading-relaxed">
+                                    A CAN MAN is a person of humanoid nature with anomalous/supernatural properties, As such, They tend to be dangerous, And you'll probably find another group just like us looking for them, Whether it be the skippers, the suits, or the CAN collectors.
+                                </p>
+
+                                <div class="mt-8 border-t-2 border-gray-600 pt-4 text-center">
+                                    <p class="text-gray-400 text-xs mb-2">Document Formatted by Marc_oOo 👁</p>
+                                    <p class="text-yellow-400 text-xl font-bold mt-4">" Unity In Understanding "</p>
+                                    <p class="text-gray-300 mt-2">Signed</p>
+                                    <p class="text-gray-300">Advisor Of Unusual Incidents</p>
+                                    <p class="text-gray-300">Tallsy J. Glaceon</p>
+                                </div>
+                            </div>
+
+                            <div id="hierarchy" class="tab-pane hidden">
+                                <h3 class="section-title">UIU Command Hierarchy</h3>
+                                
+                                <div class="bg-gray-800 p-4 mb-4 border-l-4 border-yellow-400">
+                                    <h4 class="text-yellow-400 text-lg mb-2">「 Board Of Directorates 」</h4>
+                                    <p class="text-gray-400 text-sm mb-3 italic">(All Ranks are Handpicked)</p>
+                                    <div class="space-y-3 text-gray-300">
+                                        <div>
+                                            <p class="text-yellow-300 font-bold mb-1">〈 D. | Director of Unusual Incidents 〉</p>
+                                            <p class="text-sm">Ultimate authority over all UIU operations and strategic direction. Maintains direct communication with the FBI Director and coordinates with other federal agencies on anomalous matters. Responsible for all critical operational decisions and resource allocation.</p>
+                                    </div>
+                                </div>
+
+                                <div class="bg-gray-800 p-4 mb-4 border-l-4 border-cyan-400">
+                                    <h4 class="text-cyan-400 text-lg mb-2">「 Subordinate Class Agent 」</h4>
+                                    <div class="space-y-3 text-gray-300">
+                                        <div>
+                                            <p class="text-cyan-300 font-bold mb-1">〈 SA | Special Agent 〉</p>
+                                            <p class="text-sm">Fully qualified field agents capable of independent operations and advanced intelligence gathering. Conducts unsupervised investigations, maintains cover identities when embedded in Foundation facilities, and handles sensitive informant recruitment. Authorized to carry specialized anomalous containment equipment.</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-cyan-300 font-bold mb-1">〈 SEA | Senior Agent 〉</p>
+                                            <p class="text-sm">Competent agents with 1-2 years proven field experience. Authorized for sensitive assignments requiring direct CAN interaction and POI surveillance. Conducts witness interviews, processes anomalous evidence, and assists with tactical support during containment breaches.</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-cyan-300 font-bold mb-1">〈 A | Agent 〉</p>
+                                            <p class="text-sm">Standard field operatives conducting routine investigations, surveillance, and basic anomaly documentation. Works in pairs or small teams under Supervisory Agent oversight. Responsible for maintaining equipment, filing daily reports, and ensuring procedural compliance during deployments.</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-cyan-300 font-bold mb-1">〈 TRA | Trainee Agent 〉</p>
+                                            <p class="text-sm">Newly recruited personnel undergoing field training and orientation to UIU protocols. Shadows Senior Agents during operations, studies CAN classification systems, and learns proper documentation procedures. Must complete 90-day probationary period before full Agent status.</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="bg-gray-800 p-4 mb-4 border-l-4 border-purple-400">
+                                    <h4 class="text-purple-400 text-lg mb-2">[ :// Task Force Sector ]</h4>
+                                    <div class="space-y-3 text-gray-300">
+                                        <div>
+                                            <p class="text-purple-300 font-bold mb-1">「TF-C」Task Force: CENTURION</p>
+                                            <p class="text-sm">UIU's rapid response and recontainment task force. Specializes in first-response crisis management during containment breaches. Equipped with advanced anomaly suppression technology and trained in emergency containment protocols. Regularly assists Foundation MTF units during Code Red scenarios.</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-purple-300 font-bold mb-1">「TF-B」Task Force: BLADE</p>
+                                            <p class="text-sm">UIU's VIP protection and covert operations unit. Guards high-value personnel including Directorates and visiting government officials. Trained in executive protection, hostage rescue, and counter-terrorism operations. Provides security during sensitive inter-agency meetings.</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-purple-300 font-bold mb-1">「TF-D」Task Force: DELTA</p>
+                                            <p class="text-sm">UIU's heavy tactical response and combat operations team. Deployed when Centurion and Blade require reinforcement or when situations escalate to open warfare. Specializes in guerrilla tactics, close-quarters combat, and sustained defensive operations against hostile GOIs.</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="bg-gray-800 p-4 mb-4 border-l-4 border-orange-400">
+                                    <h4 class="text-orange-400 text-lg mb-2">[ :// Special Task Force "Echelon" ]</h4>
+                                    <p class="text-gray-300 text-sm">Elite multi-national task force comprised of specialized assets from allied governments and US agencies. Members are handpicked for unique skillsets including intelligence analysis, irregular warfare, counter-terrorism, and anomalous technology expertise. Operates with increased autonomy on classified missions requiring plausible deniability. While highly skilled, Echelon operatives may lack full anomalous training and complete UIU loyalty due to their diverse backgrounds.</p>
+                                </div>
+
+                                <h3 class="section-title mt-6">Task Force Mission Profiles</h3>
+                                
+                                <div class="space-y-4">
+                                    <div class="bg-gray-800 p-3">
+                                        <h4 class="text-lg text-yellow-400 mb-2">Task Force "Delta"</h4>
+                                        <p class="text-gray-300 text-sm">Task Force "Delta" serves as the UIU's last resort option for overwhelming force projection. Deployed when conventional containment fails or when facing numerically superior hostile forces. Specializes in guerilla warfare tactics, close-quarters combat, and sustained heavy unit operations. Often called upon during prolonged sieges or when multiple task forces require coordinated reinforcement.</p>
+                                    </div>
+
+                                    <div class="bg-gray-800 p-3">
+                                        <h4 class="text-lg text-yellow-400 mb-2">Task Force "Centurion"</h4>
+                                        <p class="text-gray-300 text-sm">Task Force "Centurion" operates as the UIU's primary emergency response unit. As a dedicated first-response team, they specialize in rapid deployment to anomalous incidents requiring immediate containment. Regularly coordinates with Foundation MTF units during breach scenarios and possesses authority to requisition Foundation resources during crisis situations. Maintains 24/7 readiness status.</p>
+                                    </div>
+
+                                    <div class="bg-gray-800 p-3">
+                                        <h4 class="text-lg text-yellow-400 mb-2">Task Force "Blade"</h4>
+                                        <p class="text-gray-300 text-sm">Task Force "Blade" functions as the UIU's premier protective services unit. Provides security for UIU Directorates and VIPs including visiting American government executives during field operations. Extensively trained in executive protection, hostage rescue operations, and close protection tactics. Also serves military police functions within UIU installations.</p>
+                                    </div>
+
+                                    <div class="bg-gray-800 p-3">
+                                        <h4 class="text-lg text-yellow-400 mb-2">Special Task Force "Echelon"</h4>
+                                        <p class="text-gray-300 text-sm">Special Task Force "Echelon" represents a unique experiment in international anomalous cooperation. Comprised of operators transferred from various US intelligence agencies, military special operations units, and allied foreign governments in exchange for classified UIU intelligence. Also includes individuals with valuable skillsets who were "involuntarily recruited" due to their expertise. Specializes in signals intelligence, counterintelligence, irregular warfare, counter-terrorism, and advanced security operations depending on individual operator backgrounds.</p>
+                                        <p class="text-gray-300 text-sm mt-2 italic text-yellow-200">Note: Due to their diverse origins and recruitment methods, Echelon operatives may not always be fully familiar with anomalous phenomena nor completely loyal to UIU objectives. Exercise caution when sharing classified information.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `,
+                default: `
+                    <div class="p-4">
+                        <button id="back-to-files" class="text-yellow-400 interactive-button mb-4">[<-- Back to File Database]</button>
+                        <h3 class="text-xl text-yellow-300 mb-2">FILE REDIRECT</h3>
+                        <p class="text-gray-400 mb-2">CLASSIFICATION: RESTRICTED</p>
+                        <p>----------------------------------------</p>
+                        <p class="mt-2">THIS FILE IS LOCATED IN A DIFFERENT DIRECTORY.</p>
+                        <p class="mt-4">ACCESSING ALTERNATE FILE LOCATIONS...</p>
+                        <p class="text-cyan-300 mt-2">...REDIRECT AVAILABLE.</p>
+                        <p class="mt-4">REASON: FILE STORED IN CLASSIFIED DATABASE.</p>
+                        <p class="mt-2">Please refer to the UIU Special Files Directory for access to this document.</p>
+                        <p class="mt-4 text-yellow-400">LOCATION: UIU-SECURE-DB > SPECIAL-OPS > CLASSIFIED</p>
+                    </div>
+                `
+            };
+            
+            const fileItems = fileListView.querySelectorAll('.file-list-item');
+            fileItems.forEach(item => {
+                item.addEventListener('click', () => {
+                    const fileId = item.dataset.fileId || 'default';
+                    fileListContainer.classList.add('hidden');
+                    fileContentView.classList.remove('hidden');
+                    pendingReviewBar.style.display = 'none';
+                    fileContentView.innerHTML = '';
+
+                    const loading = document.createElement('p');
+                    loading.className = 'p-4';
+                    loading.textContent = `Accessing ${item.textContent}...`;
+                    fileContentView.appendChild(loading);
+
+                    setTimeout(() => {
+                        fileContentView.innerHTML = fileTemplates[fileId];
+                        
+                        document.getElementById('back-to-files').addEventListener('click', () => {
+                            fileContentView.classList.add('hidden');
+                            fileListContainer.classList.remove('hidden');
+                            pendingReviewBar.style.display = 'block';
+                        });
+                        
+                        if (fileId === 'handbook') {
+                            const tabButtons = fileContentView.querySelectorAll('.tab-button');
+                            const tabPanes = fileContentView.querySelectorAll('.tab-pane');
+                            tabButtons.forEach(button => {
+                                button.addEventListener('click', () => {
+                                    tabButtons.forEach(btn => btn.classList.remove('active'));
+                                    tabPanes.forEach(pane => pane.classList.add('hidden'));
+                                    button.classList.add('active');
+                                    const tabId = button.dataset.tab;
+                                    fileContentView.querySelector(`#${tabId}`).classList.remove('hidden');
+                                });
+                            });
+
+                            document.getElementById('download-pdf').addEventListener('click', () => {
+                                const link = document.createElement('a');
+                                link.href = 'https://raw.githubusercontent.com/loveisnoob/UIU_HANDBOOK/main/%5B%20-%20UIU%20-%20%5D%20Agent%20Handbook%20.pdf';
+                                link.download = 'UIU_Agent_Handbook.pdf';
+                                link.click();
+                            });
+                        }
+                    }, 1000);
+                });
+            });
+
+            function startRemoteAccessSequence() {
+                let progress = 0;
+                const interval = setInterval(() => {
+                    progress += 1;
+                    remoteProgressBar.style.width = `${progress}%`;
+
+                    if (progress >= 30 && progress < 60) {
+                        remoteStatus.textContent = "Checking for permission...";
+                    } else if (progress >= 60 && progress < 90) {
+                        remoteStatus.textContent = "Permission granted.";
+                    } else if (progress >= 90) {
+                        remoteStatus.textContent = "Loading Terminal...";
+                    }
+
+                    if (progress >= 100) {
+                        clearInterval(interval);
+                        setTimeout(() => {
+                            remoteAccessScreen.style.opacity = '0';
+                            remoteAccessScreen.style.transition = 'opacity 0.5s ease-out';
+                            setTimeout(() => {
+                                remoteAccessScreen.style.display = 'none';
+                                biosScreen.classList.remove('hidden');
+                                biosScreen.classList.add('flex');
+                                startBiosSequence();
+                            }, 500);
+                        }, 500);
+                    }
+                }, 40);
+            }
+
+            function startBiosSequence() {
+                const lines = [
+                    "USOCNET BIOS v4.5.2",
+                    "Copyright (c) 1982-2025, USOCNET Consolidated.",
+                    " ",
+                    "Main Processor: 2x Foundation-grade Quantum Entanglement Core @ 8.2 THz",
+                    "Memory Testing: 1024 ZB OK",
+                    " ",
+                    "Initializing UIU Secure Handshake Protocol...",
+                    "Checking NVRAM...",
+                    "Detecting Primary Master... UIU-DB-OMEGA",
+                    "Detecting Primary Slave... None",
+                    "Detecting Secondary Master... REDACTED",
+                    "Detecting Secondary Slave... None",
+                    " ",
+                    "Cognitohazard Filters Engaged.",
+                    "Memetic Kill Agent Shielding Active.",
+                    "Loading UIU OS from Secure Sector...",
+                ];
+                let lineIndex = 0;
+
+                function displayNextLine() {
+                    if (lineIndex < lines.length) {
+                        const p = document.createElement('p');
+                        biosText.appendChild(p);
+                        typeWriter(p, lines[lineIndex], 20, displayNextLine);
+                        lineIndex++;
+                    } else {
+                        startLoadingBar();
+                    }
+                }
+                
+                function startLoadingBar() {
+                    const p = document.createElement('p');
+                    p.className = "mt-4";
+                    biosText.appendChild(p);
+                    let progress = 0;
+                    const total = 2867;
+                    const interval = setInterval(() => {
+                        progress += Math.floor(Math.random() * 50) + 25;
+                        if (progress > total) progress = total;
+                        const percentage = Math.floor((progress / total) * 100);
+                        p.textContent = `Loading... (${progress}/${total}) ${percentage}%`;
+                        if (progress >= total) {
+                            clearInterval(interval);
+                            setTimeout(() => {
+                                biosScreen.style.opacity = '0';
+                                biosScreen.style.transition = 'opacity 1s ease-out';
+                                setTimeout(startTerminalInterface, 1000);
+                            }, 500);
+                        }
+                    }, 100);
+                }
+                displayNextLine();
+            }
+
+            function startTerminalInterface() {
+                biosScreen.style.display = 'none';
+                mainTerminal.classList.remove('hidden');
+                
+                let currentLine = document.createElement('p');
+                terminalContent.appendChild(currentLine);
+
+                typeWriter(currentLine, 'UIU v3.1 Initialization complete. All systems nominal.', 50, () => {
+                     currentLine = document.createElement('p');
+                     terminalContent.appendChild(currentLine);
+                     typeWriter(currentLine, 'Verifying connection to USOCNET Global... Secure link established.', 50, () => {
+                         currentLine = document.createElement('p');
+                         terminalContent.appendChild(currentLine);
+                         typeWriter(currentLine, 'WARNING: This terminal is under constant surveillance by UIU.', 50, () => {
+                            currentLine = document.createElement('p');
+                             currentLine.className = "mt-4";
+                            terminalContent.appendChild(currentLine);
+                            typeWriter(currentLine, 'The Following file falls under UIU Secure Database OMEGA', 50, () => {
+                                currentLine = document.createElement('p');
+                                terminalContent.appendChild(currentLine);
+                                typeWriter(currentLine, 'PENTAGRAM Handbooks', 50, () => {
+                                    currentLine = document.createElement('p');
+                                    currentLine.textContent = 'Please select a network:';
+                                    terminalContent.appendChild(currentLine);
+                                    showNetworkOptions();
+                                });
+                            });
+                         });
+                     });
+                });
+            }
+            
+            function showErrorPopup(message) {
+                errorMessage.textContent = message;
+                errorPopup.classList.remove('hidden');
+                setTimeout(() => { errorPopup.classList.add('hidden'); }, 2000);
+            }
+
+            function triggerMemeticAgent(callback) {
+                loginPopup.classList.add('hidden');
+                let currentLine = document.createElement('p');
+                terminalContent.appendChild(currentLine);
+
+                typeWriter(currentLine, 'Initializing Memetic Kill Agent...', 50, () => {
+                    const memeticAgent = document.getElementById('memetic-agent');
+                    memeticAgent.classList.remove('opacity-0');
+                    memeticAgent.style.pointerEvents = 'auto';
+
+                    setTimeout(() => {
+                        memeticAgent.classList.add('opacity-0');
+                        memeticAgent.style.pointerEvents = 'none';
+                        
+                        setTimeout(() => {
+                            currentLine = document.createElement('p');
+                            terminalContent.appendChild(currentLine);
+                            typeWriter(currentLine, 'Personnel vitals still detected. Access granted.', 50, callback);
+                        }, 1000); 
+                    }, 4000); 
+                });
+            }
+
+            function showLoginPopup(networkType) {
+                const natoPhonetics = ['ALPHA', 'BRAVO', 'CHARLIE', 'DELTA', 'ECHO', 'FOXTROT', 'GOLF', 'HOTEL', 'INDIA', 'JULIET', 'KILO', 'LIMA', 'MIKE', 'NOVEMBER', 'OSCAR', 'PAPA', 'QUEBEC', 'ROMEO', 'SIERRA', 'TANGO', 'UNIFORM', 'VICTOR', 'WHISKEY', 'XRAY', 'YANKEE', 'ZULU'];
+                const num1 = Math.floor(Math.random() * 100);
+                const phonetic1 = natoPhonetics[Math.floor(Math.random() * natoPhonetics.length)];
+                const phonetic2 = natoPhonetics[Math.floor(Math.random() * natoPhonetics.length)];
+                const num2 = Math.floor(Math.random() * 100);
+                const num3 = Math.floor(Math.random() * 1000);
+                const randomCode = `${num1}${phonetic1}-${phonetic2}-${num2}-${num3}`;
+                
+                loginPopup.classList.remove('hidden');
+                loginCode.innerHTML = '';
+                typeWriter(loginCode, randomCode, 150, () => {
+                    triggerMemeticAgent(() => {
+                        if (networkType === 'handbook') {
+                            showWelcome();
+                        } else if (networkType === 'lan') {
+                            showLANAccess();
+                        } else if (networkType === 'guest') {
+                            showGuestAccess();
+                        }
+                    });
+                });
+            }
+
+            function showNetworkOptions() {
+                const networks = { 
+                    'UIU-LAN': true, 
+                    'UIU-RESEARCH-SEC': false, 
+                    'UIU-HANDBOOK': true, 
+                    'UIU-GUEST': true 
+                };
+                const container = document.createElement('div');
+                container.className = 'flex flex-wrap gap-4 my-4';
+                
+                for (const net in networks) {
+                    const button = document.createElement('button');
+                    button.textContent = net;
+                    if (networks[net]) {
+                        button.className = 'bg-yellow-600 text-black px-4 py-2 interactive-button border-2 border-white';
+                        button.onclick = () => { 
+                            container.remove(); 
+                            if (net === 'UIU-HANDBOOK') {
+                                showLoginPopup('handbook');
+                            } else if (net === 'UIU-LAN') {
+                                showLoginPopup('lan');
+                            } else if (net === 'UIU-GUEST') {
+                                showLoginPopup('guest');
+                            }
+                        };
+                    } else {
+                        button.className = 'bg-gray-600 text-gray-400 px-4 py-2 interactive-button cursor-not-allowed';
+                        button.disabled = true;
+                        const wrapper = document.createElement('div');
+                        wrapper.style.display = 'inline-block';
+                        wrapper.onclick = () => showErrorPopup('Network Unavailable');
+                        wrapper.appendChild(button);
+                        container.appendChild(wrapper);
+                        continue;
+                    }
+                    container.appendChild(button);
+                }
+                terminalContent.appendChild(container);
+            }
+            
+            function showWelcome() {
+                let currentLine = document.createElement('p');
+                terminalContent.appendChild(currentLine);
+                typeWriter(currentLine, 'Welcome, ███████', 50, () => {
+                     currentLine = document.createElement('p');
+                     terminalContent.appendChild(currentLine);
+                     typeWriter(currentLine, 'Would you like to access the UIU Handbook?', 50, showAccessOptions);
+                });
+            }
+
+            function showLANAccess() {
+                terminalContent.innerHTML = '';
+                terminalContent.style.display = 'none';
+                archiveScreen.classList.remove('hidden');
+                fileListContainer.classList.add('hidden');
+                fileContentView.classList.remove('hidden');
+                pendingReviewBar.style.display = 'none';
+                fileContentView.innerHTML = fileTemplates.lan;
+                
+                const backButton = document.getElementById('back-to-files');
+                if (backButton) {
+                    backButton.addEventListener('click', () => {
+                        archiveScreen.classList.add('hidden');
+                        fileContentView.classList.add('hidden');
+                        fileListContainer.classList.remove('hidden');
+                        terminalContent.style.display = 'block';
+                        terminalContent.innerHTML = '';
+                        
+                        let currentLine = document.createElement('p');
+                        currentLine.textContent = 'Please select a network:';
+                        terminalContent.appendChild(currentLine);
+                        showNetworkOptions();
+                    });
+                }
+            }
+
+            function showGuestAccess() {
+                terminalContent.innerHTML = '';
+                terminalContent.style.display = 'none';
+                archiveScreen.classList.remove('hidden');
+                fileListContainer.classList.add('hidden');
+                fileContentView.classList.remove('hidden');
+                pendingReviewBar.style.display = 'none';
+                fileContentView.innerHTML = fileTemplates.guest;
+                
+                const backButton = document.getElementById('back-to-files');
+                if (backButton) {
+                    backButton.addEventListener('click', () => {
+                        archiveScreen.classList.add('hidden');
+                        fileContentView.classList.add('hidden');
+                        fileListContainer.classList.remove('hidden');
+                        terminalContent.style.display = 'block';
+                        terminalContent.innerHTML = '';
+                        
+                        let currentLine = document.createElement('p');
+                        currentLine.textContent = 'Please select a network:';
+                        terminalContent.appendChild(currentLine);
+                        showNetworkOptions();
+                    });
+                }
+            }
+
+            function showAccessOptions() {
+                 const container = document.createElement('div');
+                 container.className = 'flex gap-4 my-4';
+                 const yesButton = document.createElement('button');
+                 yesButton.textContent = 'Y';
+                 yesButton.className = 'text-green-500 border border-green-500 px-4 py-2 interactive-button hover:bg-green-500 hover:text-black';
+                 yesButton.onclick = showHandbook;
+                 const noButton = document.createElement('button');
+                 noButton.textContent = 'N';
+                 noButton.className = 'text-red-500 border border-red-500 px-4 py-2 interactive-button hover:bg-red-500 hover:text-black';
+                 container.appendChild(yesButton);
+                 container.appendChild(noButton);
+                 terminalContent.appendChild(container);
+            }
+
+            function showHandbook() {
+                terminalContent.innerHTML = '';
+                terminalContent.style.display = 'none';
+                archiveScreen.classList.remove('hidden');
+            }
+
+            startRemoteAccessSequence();
+        });
+    </script>
+</body>
+</html>
+                                        <div>
+                                            <p class="text-yellow-300 font-bold mb-1">〈 DD | Deputy Director 〉</p>
+                                            <p class="text-sm">Second-in-command with full operational authority in the Director's absence. Manages day-to-day operations, oversees inter-agency coordination, and serves as liaison between High Command and the Director. Handles sensitive diplomatic negotiations with allied organizations.</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-yellow-300 font-bold mb-1">〈 EaD | Executive Assistant Directorate 〉</p>
+                                            <p class="text-sm">Third-in-command responsible for special projects and crisis management. Coordinates between various directorates and ensures operational continuity. Oversees classified research initiatives and maintains strategic partnerships with foreign anomalous agencies.</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="bg-gray-800 p-4 mb-4 border-l-4 border-red-400">
+                                    <h4 class="text-red-400 text-lg mb-2">「 High Command 」</h4>
+                                    <p class="text-gray-400 text-sm mb-3 italic">(All ranks are handpicked)</p>
+                                    <div class="space-y-3 text-gray-300">
+                                        <div>
+                                            <p class="text-red-300 font-bold mb-1">〈 TFC | Task Force Coordinator 〉</p>
+                                            <p class="text-sm">Oversees all specialized task force operations including Centurion, Blade, Delta, and Echelon. Coordinates multi-unit deployments during large-scale incidents and ensures tactical efficiency across all combat-ready divisions. Authorizes high-risk operations and emergency responses.</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-red-300 font-bold mb-1">〈 UC | Unit Commissioner 〉</p>
+                                            <p class="text-sm">Manages unit resources, personnel assignments, and operational budgets. Responsible for equipment procurement, training programs, and maintaining operational readiness. Evaluates personnel performance and recommends promotions to Field Leadership ranks.</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-red-300 font-bold mb-1">〈 FC | Field Command 〉</p>
+                                            <p class="text-sm">Directs active field operations and provides real-time tactical guidance to deployed agents. Coordinates with Foundation L3+ personnel during joint operations. Responsible for threat assessment, deployment authorization, and on-site crisis management during containment breaches.</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-red-300 font-bold mb-1">〈 POTUS. | President of The United States 〉</p>
+                                            <p class="text-sm">Honorary position recognizing executive governmental oversight of UIU operations. Receives regular briefings on major anomalous threats to national security and authorizes black budget allocations for critical missions. Final authority on lethal force authorization against high-value targets.</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="bg-gray-800 p-4 mb-4 border-l-4 border-blue-400">
+                                    <h4 class="text-blue-400 text-lg mb-2">「 Field Leadership 」</h4>
+                                    <p class="text-gray-400 text-sm mb-3 italic">(All ranks are handpicked)</p>
+                                    <div class="space-y-3 text-gray-300">
+                                        <div>
+                                            <p class="text-blue-300 font-bold mb-1">〈 EFS | Executive Federal Supervisor 〉</p>
+                                            <p class="text-sm">Senior field commander responsible for multi-site operations and large-scale crisis management. Commands regional UIU divisions and coordinates with federal law enforcement during anomalous incidents. Authorized to declare Threat Levels Charlie and Delta-1 in their jurisdiction.</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-blue-300 font-bold mb-1">〈 FS | Federal Supervisor 〉</p>
+                                            <p class="text-sm">Experienced supervisor managing regional operations and agent coordination across multiple facilities. Conducts operational reviews, mentors Special Agents in Charge, and ensures compliance with UIU protocols. Leads investigation teams during complex anomalous criminal cases.</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-blue-300 font-bold mb-1">〈 SAC | Special Agent in Charge 〉</p>
+                                            <p class="text-sm">On-site leadership role directing tactical operations and immediate response to anomalous events. Manages teams of 5-15 agents during deployments, coordinates with Foundation Site Directors, and provides after-action reports to High Command. First responder authority during containment breaches.</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="bg-gray-800 p-4 mb-4 border-l-4 border-green-400">
+                                    <h4 class="text-green-400 text-lg mb-2">「 Superior Class Agent 」</h4>
+                                    <div class="space-y-3 text-gray-300">
+                                        <div>
+                                            <p class="text-green-300 font-bold mb-1">〈 DA | Directorate Assistant 〉</p>
+                                            <p class="text-sm">Personal advisors to the Board of Directorates, handling sensitive communications and classified operations. Maintains security clearances for Top Secret/SCI materials, manages encrypted communications with allied agencies, and conducts covert intelligence gathering on Groups of Interest.</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-green-300 font-bold mb-1">〈 EA | Executive Agent 〉</p>
+                                            <p class="text-sm">Elite field operatives with 8+ years experience in anomaly investigation and inter-agency coordination. Qualified for solo reconnaissance missions into hostile GOI territories. Specializes in CAN identification, POI interrogation, and diplomatic negotiations with anomalous entities.</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-green-300 font-bold mb-1">〈 SSA | Senior Supervisory Agent 〉</p>
+                                            <p class="text-sm">Veteran agents with proven track records overseeing complex anomalous cases. Commands small tactical teams during field operations, mentors junior personnel, and develops new investigation protocols. Authorized to make field decisions regarding CAN containment procedures.</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-green-300 font-bold mb-1">〈 SuA | Supervisory Agent 〉</p>
+                                            <p class="text-sm">Experienced field agents leading 3-5 person teams during standard deployments. Handles mid-level threat assessments, coordinates surveillance operations, and conducts preliminary CAN documentation. Serves as acting SAC during routine deployments to Foundation facilities.</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-green-300 font-bold mb-1">〈 JSA | Junior Supervisory Agent 〉</p>
+                                            <p class="text-sm">Agents transitioning into leadership roles with 2-4 years field experience. Assists Supervisory Agents with team coordination and tactical planning. Conducts training exercises for Subordinate Class personnel and compiles intelligence reports for High Command review.</p>
+                                        </div>
